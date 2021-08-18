@@ -2,7 +2,6 @@
 // middleware functions from `auth-middleware.js`. You will need them here!
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
-
 const Users = require("../users/users-model");
 
 const {
@@ -11,67 +10,63 @@ const {
   checkPasswordLength,
 } = require("../auth/auth-middleware");
 
-/**
-  1 [POST] /api/auth/register { "username": "sue", "password": "1234" }
-  response:
-  status 200
-  {
-    "user_id": 2,
-    "username": "sue"
+router.post(
+"/register",
+  checkUsernameFree,
+  checkPasswordLength,
+  async (req, res, next) => {
+    try {
+      const { username, password } = req.body; //1    // request body username and password from the clients side
+      const hash = bcrypt.hashSync(password, 8); //2   // genearting hash
+      const newAccount = await Users.add({ username, password: hash })  //releases hash and username to the underworld
+      res.status(201).json(newAccount); //responds  to the front end
+    } catch (err) {
+      next(err);
+    }
   }
-  response on username taken:
-  status 422
-  {
-    "message": "Username taken"
-  }
-  response on password three chars or less:
-  status 422
-  {
-    "message": "Password must be longer than 3 chars"
-  }
- */
-// router.post('/register', checkUsernameFree, checkPasswordLength, (req, res, next) => {
-//   const { username, password } = req.body
-//   const hash = bcrypt.hashSync(password, 8)
-//   const user = { username, password: hash }
-
-//   Users.add(user)
-//     .then(newUser => {
-//       res.status(201).json({
-//         user_id: newUser.user_id,
-//         username: newUser.username
-//       })
-//     })
-//     .catch(next)
-// })
+);
 
 
-// pipe the hash function
-router.post("/register", async (req, res, next) => {
-  try {
-    const { username, password } = req.body;
-    const hash = bcrypt.hashSync(password, 8) //2
-    // console.log(username, password);
-    res.json(hash)
-    // res.json({ username, password });
-  } catch (err) {
-    next(err);
-  }
+
+
+
+
+
+
+router.post("/login", checkUsernameExists, (req, res, next) => {
+
+
+  
+  const { username, password } = req.body;
+  Users.findBy({ username })
+    .then(([user]) => {
+      if (user && bcrypt.compareSync(password, user.password)) {
+        req.session.user = user;
+        res.json({
+          message: `welcome ${user.username}`,
+        });
+      } else {
+        next({
+          status: 401,
+          message: "Invalid credentials",
+        });
+      }
+    })
+    .catch(next);
 });
 
-/**
-  2 [POST] /api/auth/login { "username": "sue", "password": "1234" }
-  response:
-  status 200
-  {
-    "message": "Welcome sue!"
+router.get("/logout", (req, res, next) => {
+  if (req.session.user) {
+    req.session.destroy((err) => {
+      if (err) {
+        next({ message: "logout failed" });
+      } else {
+        res.json({ status: 200, message: "logged out" });
+      }
+    });
+  } else {
+    next({ status: 200, message: "no session" });
   }
-  response on invalid credentials:
-  status 401
-  {
-    "message": "Invalid credentials"
-  }
- */
-
+});
 
 module.exports = router;

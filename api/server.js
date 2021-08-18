@@ -28,7 +28,7 @@ server.use(session({
   name: 'chocolatechip',
   secret: 'make it long and random',
   cookie: {
-    maxAge: 1000 * 60 * 60,
+    maxAge: 1000 * 30 * 30,
     secure: false,
     httpOnly: false,
   },
